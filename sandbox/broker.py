@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import http.client
 import json
-import math
 import os
 import socketserver
 import sys
@@ -23,39 +22,29 @@ REGISTER_TIMEOUT_S = 1800   # a new target needs an alignment search
 # request costs ceil(predictions / shards) rounds. 480 is a whole number of
 # rounds at 24 shards and stays under the server's 512 cap.
 MAX_PREDICTIONS = 480
-
-# Miner-selectable inference parameters. Bounds keep one sandbox from turning a
-# single request into unbounded GPU work. The oracle remains authoritative and
-# may apply stricter limits. Validator scoring never supplies these options.
-BOLTZ2_OPTION_BOUNDS = {
-    "recycling_steps": (0, 10, int),
-    "recycling_steps_affinity": (0, 10, int),
-    "sampling_steps": (1, 500, int),
-    "sampling_steps_affinity": (1, 500, int),
-    "diffusion_samples": (1, 8, int),
-    "diffusion_samples_affinity": (1, 8, int),
-    "step_scale": (0.1, 5.0, (int, float)),
-}
+MAX_BOLTZ2_OPTIONS_BYTES = 64 * 1024
 
 
 def validate_boltz2_options(value) -> dict | None:
-    """Return a safe copy of miner-selected Boltz-2 options."""
+    """Return the complete JSON Boltz-2 configuration supplied by a miner.
+
+    Blueprint deliberately does not maintain a model-parameter allowlist: that
+    would hide new Boltz-2 controls until every validator upgraded its broker.
+    The oracle owns model-specific validation and resource limits. The broker
+    only guarantees a bounded, JSON-serializable object before forwarding it.
+    """
     if value is None:
         return None
     if not isinstance(value, dict):
         raise ValueError("boltz2 must be an object")
-    unknown = sorted(set(value) - set(BOLTZ2_OPTION_BOUNDS))
-    if unknown:
-        raise ValueError(f"unsupported boltz2 option: {unknown[0]}")
-    out = {}
-    for name, raw in value.items():
-        low, high, kind = BOLTZ2_OPTION_BOUNDS[name]
-        if isinstance(raw, bool) or not isinstance(raw, kind):
-            raise ValueError(f"boltz2.{name} has the wrong type")
-        if not math.isfinite(raw) or not low <= raw <= high:
-            raise ValueError(f"boltz2.{name} must be between {low} and {high}")
-        out[name] = raw
-    return out
+    try:
+        encoded = json.dumps(value, allow_nan=False, separators=(",", ":")).encode()
+    except (TypeError, ValueError) as exc:
+        raise ValueError("boltz2 must contain finite JSON values") from exc
+    if len(encoded) > MAX_BOLTZ2_OPTIONS_BYTES:
+        raise ValueError(
+            f"boltz2 configuration exceeds {MAX_BOLTZ2_OPTIONS_BYTES} bytes")
+    return dict(value)
 
 
 def _post(path: str, body: dict, timeout: float) -> tuple[int, bytes]:

@@ -28,11 +28,11 @@ Higher is better. `combine` returns `-inf` where the oracle returned no predicti
 One request covers every (molecule, target) pair, so pass all targets at once.
 
 For inexpensive screening, `Oracle.score` also accepts an optional `boltz2`
-mapping. Supported keys are `recycling_steps`, `sampling_steps`,
-`diffusion_samples`, their `_affinity` counterparts, and `step_scale`. The
-broker validates and bounds every value before forwarding it. Omission selects
-the canonical configuration; the validator always omits this mapping for final
-scoring.
+mapping containing the complete Boltz-2 prediction configuration. The broker
+forwards every JSON-serializable option without maintaining a parameter
+allowlist; the oracle validates model-specific values and compute limits.
+Omission selects the canonical configuration, and the validator always omits
+this mapping for final scoring.
 
 ## Runtime
 

@@ -84,8 +84,8 @@ score = combine(rows[0]["scores"][0], get_heavy_atom_count("CCO"))
 
 `combine` reduces the Boltz-2 metrics to the number you are ranked by; higher is better, `-inf` where no prediction was returned. Requests are spread across the oracle's 24 shards, so twenty-four pairs cost about as much as one — batch widely. `neurons/miner/` is an example.
 
-Miners can trade inference cost for fidelity during search by passing an
-allowlisted Boltz-2 configuration. Omit `boltz2` for the canonical defaults:
+Miners can trade inference cost for fidelity during search by passing the full
+Boltz-2 prediction configuration. Omit `boltz2` for the canonical defaults:
 
 ```python
 rows = oracle.score(
@@ -98,14 +98,21 @@ rows = oracle.score(
         "recycling_steps_affinity": 2,
         "sampling_steps_affinity": 50,
         "diffusion_samples_affinity": 1,
+        "skip_affinity_structure": False,
+        "skip_affinity_confidence": False,
+        "max_parallel_samples": 1,
+        "token_precision": "float32",
+        "batched_diffusion": True,
     },
 )
 ```
 
-The broker accepts the corresponding full-model controls plus `step_scale`,
-within bounded ranges. These settings apply only to miner oracle calls. Final
-validator scoring deliberately omits them and always uses the canonical oracle
-configuration, so all submissions remain directly comparable.
+The broker forwards every JSON-serializable entry in `boltz2` without a
+parameter allowlist, so miners can use the complete prediction API and future
+Boltz-2 options without a Blueprint release. The oracle validates model-specific
+values and enforces compute limits. These settings apply only to miner oracle
+calls. Final validator scoring deliberately omits them and always uses the
+canonical oracle configuration, so all submissions remain directly comparable.
 
 **Note - Combinatorial SQLite DB**: open the provided database in read‑only mode to avoid write errors on a read‑only filesystem. Example: `sqlite3.connect(f"file:{db_path}?mode=ro&immutable=1", uri=True)`.
 
@@ -144,4 +151,3 @@ Notes:
 - Submissions must be signed by a hotkey that owns the submission (its coldkey receives emissions if you win). One active slot per hotkey per epoch; re-submitting with the same hotkey in the same epoch overwrites the previous code upload with no fee.
 - Submission eligibility and instructions depend on the live submission mode; check `GET /quote?hotkey=<ss58>` and https://submission-api.metanova-labs.ai/docs
 ---
-
