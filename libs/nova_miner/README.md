@@ -27,6 +27,13 @@ score = combine(rows[0]["scores"][0], get_heavy_atom_count(smiles))
 Higher is better. `combine` returns `-inf` where the oracle returned no prediction.
 One request covers every (molecule, target) pair, so pass all targets at once.
 
+For inexpensive screening, `Oracle.score` also accepts an optional `boltz2`
+mapping. Supported keys are `recycling_steps`, `sampling_steps`,
+`diffusion_samples`, their `_affinity` counterparts, and `step_scale`. The
+broker validates and bounds every value before forwarding it. Omission selects
+the canonical configuration; the validator always omits this mapping for final
+scoring.
+
 ## Runtime
 
 The sandbox has no network and no GPU: `ORACLE_SOCKET` is the only route out, and
